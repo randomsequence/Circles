@@ -21,10 +21,10 @@ class Renderer : NSObject {
     circleGenerator = CircleGenerator(device: device)
     
     let vertexData: [Float] = [
-      -0.8, -0.8, 0.0, 0.0, 0.0,
-      -0.8,  0.8, 0.0, 0.0, 1.0,
-       0.8, -0.8, 0.0, 1.0, 0.0,
-       0.8,  0.8, 0.0, 1.0, 1.0,
+      -1.0, -1.0, 0.0, 0.0, 0.0,
+      -1.0,  1.0, 0.0, 0.0, 1.0,
+       1.0, -1.0, 0.0, 1.0, 0.0,
+       1.0,  1.0, 0.0, 1.0, 1.0,
     ]
     
     let dataSize = vertexData.count * MemoryLayout.size(ofValue: vertexData[0])
@@ -49,7 +49,10 @@ class Renderer : NSObject {
     if computeTexture == nil
       || computeTexture?.width != texture.width
       || computeTexture?.height != texture.height {
-      let decriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: texture.width, height: texture.height, mipmapped: false)
+      let decriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm,
+                                                               width: texture.width,
+                                                               height: texture.height,
+                                                               mipmapped: false)
       decriptor.usage = [.shaderRead, .shaderWrite]
       computeTexture = device.makeTexture(descriptor: decriptor)
     }

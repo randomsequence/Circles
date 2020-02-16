@@ -23,7 +23,15 @@ class ViewController: NSViewController {
   }
   
   func render() {
-    if let drawable = metalLayer?.nextDrawable() {
+    if let metalLayer = metalLayer, let drawable = metalLayer.nextDrawable() {
+      let boundsSize = metalLayer.bounds.size
+      let scale = metalLayer.contentsScale
+      let drawableSize = CGSize(width: boundsSize.width * scale, height: boundsSize.height * scale)
+      
+      if (!metalLayer.drawableSize.equalTo(drawableSize)) {
+        metalLayer.drawableSize = drawableSize;
+      }
+      
       renderer?.render(texture: drawable.texture)
       drawable.present()
     }
@@ -53,6 +61,7 @@ class ViewController: NSViewController {
     layer.pixelFormat = .bgra8Unorm
     layer.framebufferOnly = true
     layer.frame = view.bounds
+    layer.needsDisplayOnBoundsChange = true
     
     let renderer = Renderer()
     layer.device = renderer.device

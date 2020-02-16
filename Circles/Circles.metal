@@ -58,14 +58,14 @@ struct Circle {
 
 constant int CircleCount = 8;
 constant Circle circles[CircleCount] = {
-  {.position={0.1, 0.2}, .velocity={1.0, 1.0}, .color={1.0, 0.3, 0.0, 0.8}, .radius=0.3},
+  {.position={0.1, 0.2}, .velocity={1.0, -.7}, .color={1.0, 0.3, 0.0, 0.8}, .radius=0.3},
   {.position={-.3, 0.4}, .velocity={-.9, 1.0}, .color={0.2, 0.3, 0.5, 0.4}, .radius=0.2},
   {.position={-.5, 0.2}, .velocity={1.0, 1.0}, .color={0.3, 0.1, 0.6, 0.9}, .radius=0.4},
   {.position={-.2, 0.2}, .velocity={1.0, -.7}, .color={0.3, 0.1, 0.6, 0.9}, .radius=0.4},
   {.position={0.5, 0.2}, .velocity={-.5, 1.0}, .color={0.3, 0.5, 0.0, 0.7}, .radius=0.4},
-  {.position={-.2, -.6}, .velocity={1.0, 1.0}, .color={0.6, 0.3, 0.2, 0.5}, .radius=0.6},
-  {.position={0.4, 0.3}, .velocity={1.0, 1.0}, .color={0.0, 0.9, 0.4, 0.2}, .radius=0.5},
-  {.position={-.4, -.3}, .velocity={1.0, 1.0}, .color={0.9, 0.3, 0.0, 0.7}, .radius=0.3},
+  {.position={-.2, -.6}, .velocity={1.0, 0.2}, .color={0.6, 0.3, 0.2, 0.5}, .radius=0.6},
+  {.position={0.4, 0.3}, .velocity={0.5, 1.0}, .color={0.0, 0.9, 0.4, 0.2}, .radius=0.5},
+  {.position={-.4, -.3}, .velocity={0.7, -.3}, .color={0.9, 0.3, 0.0, 0.7}, .radius=0.3},
 };
 
 kernel void generate_circles(texture2d<half, access::read>  inTexture  [[texture(TextureIndexInput)]],
@@ -80,20 +80,22 @@ kernel void generate_circles(texture2d<half, access::read>  inTexture  [[texture
   half4 color = half4(0);
   
   half4 inColor  = inTexture.read(gid);
-  half grey = dot(inColor.rgb, kRec709Luma);
+  const half grey = dot(inColor.rgb, kRec709Luma);
   
   color = alpha_blend(grey, color);
   
-  half frame = half(frameCountIndex[0]) / 60.0h;
+  const half frame = half(frameCountIndex[0]) / 60.0h;
   
   // pixel position in normalised coordinates, with 0,0 at the centre
-  half2 gidh = half2(-0.5) + ( half2(gid) / half2(grid));
+  half2 gridh = half2(grid);
+  half2 gidh = half2(-0.5) + (half2(gid) / gridh);
+  gidh.x *= (gridh.x / gridh.y);
   
   for (int i=0; i<CircleCount; i++) {
-    half2 velocity = circles[i].velocity;
-    half2 position = circles[i].position * half2(sin(frame * velocity.x), cos(frame * velocity.y));
-    half dist = distance(gidh, position);
-    half opacity = step(0.0h, circles[i].radius - dist); // max(0.0h, circles[i].radius - dist);
+    const half2 velocity = circles[i].velocity;
+    const half2 position = circles[i].position * half2(sin(frame * velocity.x), cos(frame * velocity.y));
+    const half dist = distance(gidh, position);
+    const half opacity = step(0.0h, circles[i].radius - dist); // max(0.0h, circles[i].radius - dist);
     color = alpha_blend(circles[i].color * opacity, color);
   }
   
