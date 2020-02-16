@@ -11,4 +11,9 @@ typedef enum TextureIndex
     TextureIndexOutput = 1,
 } TextureIndex;
 
+typedef enum BufferIndex
+{
+    BufferIndexFrameCount = 0,
+} BufferIndex;
+
 #endif /* MetalShared_h */

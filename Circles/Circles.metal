@@ -5,6 +5,8 @@ using namespace metal;
 
 #import "MetalShared.h"
 
+#pragma mark - Vertex Rasterisation
+
 struct VertexIn{
   packed_float3 position;
   packed_float2 texCoord;
@@ -37,15 +39,63 @@ fragment half4 basic_fragment(VertexOut interpolated [[stage_in]],
   return color;
 }
 
+#pragma mark - Compute
+
+// source-over blending
+static inline half4 alpha_blend(half4 src, half4 dest) {
+  return src + (dest * (1.0-src.a));
+}
+
 // Rec. 709 luma values for grayscale image conversion
 constant half3 kRec709Luma = half3(0.2126, 0.7152, 0.0722);
 
+struct Circle {
+  half2 position;
+  half2 velocity;
+  half4 color;
+  half radius;
+};
+
+constant int CircleCount = 8;
+constant Circle circles[CircleCount] = {
+  {.position={0.1, 0.2}, .velocity={1.0, 1.0}, .color={1.0, 0.3, 0.0, 0.8}, .radius=0.3},
+  {.position={-.3, 0.4}, .velocity={-.9, 1.0}, .color={0.2, 0.3, 0.5, 0.4}, .radius=0.2},
+  {.position={-.5, 0.2}, .velocity={1.0, 1.0}, .color={0.3, 0.1, 0.6, 0.9}, .radius=0.4},
+  {.position={-.2, 0.2}, .velocity={1.0, -.7}, .color={0.3, 0.1, 0.6, 0.9}, .radius=0.4},
+  {.position={0.5, 0.2}, .velocity={-.5, 1.0}, .color={0.3, 0.5, 0.0, 0.7}, .radius=0.4},
+  {.position={-.2, -.6}, .velocity={1.0, 1.0}, .color={0.6, 0.3, 0.2, 0.5}, .radius=0.6},
+  {.position={0.4, 0.3}, .velocity={1.0, 1.0}, .color={0.0, 0.9, 0.4, 0.2}, .radius=0.5},
+  {.position={-.4, -.3}, .velocity={1.0, 1.0}, .color={0.9, 0.3, 0.0, 0.7}, .radius=0.3},
+};
+
 kernel void generate_circles(texture2d<half, access::read>  inTexture  [[texture(TextureIndexInput)]],
                              texture2d<half, access::write> outTexture [[texture(TextureIndexOutput)]],
+                             constant int *frameCountIndex [[buffer(BufferIndexFrameCount)]],
                              uint2 gid [[thread_position_in_grid]],
-                             uint2 threads_per_threadgroup        [[ threads_per_threadgroup ]])
+                             uint2 grid [[threads_per_grid]]
+//                             uint2 threadgroups [[threadgroups_per_grid]],
+//                             uint2 threads_per_threadgroup [[ threads_per_threadgroup ]]
+                             )
 {
+  half4 color = half4(0);
+  
   half4 inColor  = inTexture.read(gid);
   half grey = dot(inColor.rgb, kRec709Luma);
-  outTexture.write(half4(grey, grey, grey, inColor.a), gid);
+  
+  color = alpha_blend(grey, color);
+  
+  half frame = half(frameCountIndex[0]) / 60.0h;
+  
+  // pixel position in normalised coordinates, with 0,0 at the centre
+  half2 gidh = half2(-0.5) + ( half2(gid) / half2(grid));
+  
+  for (int i=0; i<CircleCount; i++) {
+    half2 velocity = circles[i].velocity;
+    half2 position = circles[i].position * half2(sin(frame * velocity.x), cos(frame * velocity.y));
+    half dist = distance(gidh, position);
+    half opacity = step(0.0h, circles[i].radius - dist); // max(0.0h, circles[i].radius - dist);
+    color = alpha_blend(circles[i].color * opacity, color);
+  }
+  
+  outTexture.write(color, gid);
 }
