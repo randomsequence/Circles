@@ -10,7 +10,7 @@ public class CircleGenerator : NSObject {
   let device: MTLDevice
   let pipeline: MTLComputePipelineState!
   
-  var inputTexture: MTLTexture!
+  var inputTextures = [MTLTexture]()
   let threadgroupSize: MTLSize
   
   var frameCount: Int = 0
@@ -22,7 +22,10 @@ public class CircleGenerator : NSObject {
     pipeline = try! device.makeComputePipelineState(function: function)
     
     let loader = MTKTextureLoader(device: device)
-    inputTexture = try! loader.newTexture(name: "testcard", scaleFactor: 1.0, bundle: nil, options: [:])
+    for name in ["cells", "jar", "morris", "salt"] {
+      let inputTexture = try! loader.newTexture(name: name, scaleFactor: 1.0, bundle: nil, options: [:])
+      inputTextures.append(inputTexture)
+    }
     
     let threadExecutionWidth = pipeline.threadExecutionWidth
     threadgroupSize = MTLSizeMake(threadExecutionWidth, pipeline.maxTotalThreadsPerThreadgroup / threadExecutionWidth, 1);
@@ -33,7 +36,9 @@ public class CircleGenerator : NSObject {
             
     computeEncoder.setComputePipelineState(pipeline)
     computeEncoder.setBytes(&frameCount, length: MemoryLayout<Int>.size, index: Int(BufferIndexFrameCount.rawValue));
-    computeEncoder.setTexture(inputTexture, index: Int(TextureIndexInput.rawValue))
+//    computeEncoder.setTexture(inputTexture, index: Int(TextureIndexInput.rawValue))
+    let startIndex = Int(TextureIndexInput.rawValue)
+    computeEncoder.setTextures(inputTextures, range: startIndex..<startIndex+inputTextures.count)
     computeEncoder.setTexture(texture, index: Int(TextureIndexOutput.rawValue))
     
     let width = texture.width

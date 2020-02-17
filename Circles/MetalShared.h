@@ -7,8 +7,8 @@
 
 typedef enum TextureIndex
 {
-    TextureIndexInput  = 0,
-    TextureIndexOutput = 1,
+    TextureIndexOutput = 0,
+    TextureIndexInput  = 1,
 } TextureIndex;
 
 typedef enum BufferIndex

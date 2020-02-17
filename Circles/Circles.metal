@@ -68,8 +68,8 @@ constant Circle circles[CircleCount] = {
   {.position={-.4, -.3}, .velocity={0.7, -.3}, .color={0.9, 0.3, 0.0, 0.7}, .radius=0.3},
 };
 
-kernel void generate_circles(texture2d<half, access::read>  inTexture  [[texture(TextureIndexInput)]],
-                             texture2d<half, access::write> outTexture [[texture(TextureIndexOutput)]],
+kernel void generate_circles(texture2d<half, access::write> outTexture [[texture(TextureIndexOutput)]],
+                             const array<texture2d<half, access::sample>, 4> inTextures  [[texture(TextureIndexInput)]],
                              constant int *frameCountIndex [[buffer(BufferIndexFrameCount)]],
                              uint2 gid [[thread_position_in_grid]],
                              uint2 grid [[threads_per_grid]]
@@ -77,26 +77,37 @@ kernel void generate_circles(texture2d<half, access::read>  inTexture  [[texture
 //                             uint2 threads_per_threadgroup [[ threads_per_threadgroup ]]
                              )
 {
-  half4 color = half4(0);
-  
-  half4 inColor  = inTexture.read(gid);
-  const half grey = dot(inColor.rgb, kRec709Luma);
-  
-  color = alpha_blend(grey, color);
-  
   const half frame = half(frameCountIndex[0]) / 60.0h;
   
   // pixel position in normalised coordinates, with 0,0 at the centre
   half2 gridh = half2(grid);
   half2 gidh = half2(-0.5) + (half2(gid) / gridh);
   gidh.x *= (gridh.x / gridh.y);
-  
+
+  constexpr sampler textureSampler(coord::normalized, address::mirrored_repeat, mag_filter::linear, min_filter::linear);
+
+  half4 color = half4(0);
+
+  half4 inColor  = inTextures[0].sample(textureSampler, float2(gidh) * 4.0);
+  const half grey = dot(inColor.rgb, kRec709Luma);
+
+  color = alpha_blend(grey, color);
+
   for (int i=0; i<CircleCount; i++) {
     const half2 velocity = circles[i].velocity;
     const half2 position = circles[i].position * half2(sin(frame * velocity.x), cos(frame * velocity.y));
     const half dist = distance(gidh, position);
+
+    const float2 coordinate = float2(gidh - position);
+    const half4 sampled = inTextures[i % 4].sample(textureSampler, coordinate);
+    const half mono = dot(sampled.rgb, kRec709Luma);
+
+    const half4 tinted = half4(circles[i].color.rgb * 0.5 + (circles[i].color.rgb * mono * 0.5), circles[i].color.a);
+
+//    color = alpha_blend(sampled, color);
+    
     const half opacity = step(0.0h, circles[i].radius - dist); // max(0.0h, circles[i].radius - dist);
-    color = alpha_blend(circles[i].color * opacity, color);
+    color = alpha_blend(tinted * opacity, color);
   }
   
   outTexture.write(color, gid);
