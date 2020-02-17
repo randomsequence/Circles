@@ -14,6 +14,14 @@ typedef enum TextureIndex
 typedef enum BufferIndex
 {
     BufferIndexFrameCount = 0,
+    BufferIndexCircleData = 1,
 } BufferIndex;
+
+struct Circle {
+  simd_float4 color;
+  simd_float2 position;
+  simd_float2 velocity;
+  float radius;
+};
 
 #endif /* MetalShared_h */

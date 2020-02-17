@@ -7,8 +7,9 @@ class Renderer : NSObject {
   let device: MTLDevice
   let library: MTLLibrary
   let queue: MTLCommandQueue
-  let circleGenerator: CircleGenerator!
-  
+  let circles: Circles!
+  var circleBuffer: MTLBuffer?
+
   let vertexBuffer: MTLBuffer
   var vertexPipeline: MTLRenderPipelineState!
   var computeTexture: MTLTexture?
@@ -18,7 +19,8 @@ class Renderer : NSObject {
     library = device.makeDefaultLibrary()!
     queue = device.makeCommandQueue()!
     
-    circleGenerator = CircleGenerator(device: device)
+    circles = Circles(device: device)
+    circleBuffer = circles.generate()
     
     let vertexData: [Float] = [
       -1.0, -1.0, 0.0, 0.0, 0.0,
@@ -57,7 +59,7 @@ class Renderer : NSObject {
       computeTexture = device.makeTexture(descriptor: decriptor)
     }
     
-    circleGenerator.generate(commands: commands, texture: computeTexture!)
+    circles.render(commands: commands, texture: computeTexture!, circles: circleBuffer!)
     
     let renderPassDescriptor = MTLRenderPassDescriptor()
     renderPassDescriptor.colorAttachments[0].texture = texture
