@@ -19,7 +19,7 @@ typedef enum BufferIndex
 
 struct Circle {
   simd_float4 color;
-  simd_float2 position;
+  simd_float2 origin;
   simd_float2 velocity;
   float radius;
 };

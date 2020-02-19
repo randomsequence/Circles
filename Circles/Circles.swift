@@ -33,15 +33,19 @@ public class Circles : NSObject {
     threadgroupSize = MTLSizeMake(threadExecutionWidth, pipeline.maxTotalThreadsPerThreadgroup / threadExecutionWidth, 1);
   }
 
-  public func generate(count: Int = 128) -> MTLBuffer {
+  public func generate(count: Int = 512) -> MTLBuffer {
 
     let noiseSource = GKPerlinNoiseSource(frequency: 0.1, octaveCount: 2, persistence: 1, lacunarity: 0.3, seed: 05535555)
     let noise = GKNoise(noiseSource)
 
     let circleBuffer = UnsafeMutableBufferPointer<Circle>.allocate(capacity: count)
+    defer {
+      circleBuffer.deallocate()
+    }
+
     for i in 0..<count {
       let i_f = Float(i)
-      circleBuffer[i].position = simd_float2(noise.value(atPosition: vector_float2(i_f, 0)),
+      circleBuffer[i].origin = simd_float2(noise.value(atPosition: vector_float2(i_f, 0)),
                                              noise.value(atPosition: vector_float2(0, i_f)))
       let radius = abs(0.75 * noise.value(atPosition: vector_float2(-i_f, i_f)))
       circleBuffer[i].radius = radius
@@ -51,10 +55,6 @@ public class Circles : NSObject {
                                           (1.0-radius) * abs(noise.value(atPosition: vector_float2(i_f*2, i_f*2))),
                                           (1.0-radius) * abs(noise.value(atPosition: vector_float2(i_f*3, i_f*3))),
                                           0.5 + abs(0.5 * noise.value(atPosition: vector_float2(i_f, 5))))
-    }
-
-    defer {
-      circleBuffer.deallocate()
     }
 
     let length = MemoryLayout<Circle>.size * count
