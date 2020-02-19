@@ -21,6 +21,7 @@ struct Circle {
   simd_float4 color;
   simd_float2 origin;
   simd_float2 velocity;
+  uint textureIndex;
   float radius;
 };
 

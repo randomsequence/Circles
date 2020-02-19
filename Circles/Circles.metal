@@ -55,7 +55,7 @@ kernel void render_circles(texture2d<half, access::write> outTexture [[texture(T
     const half2 position = half2(circles[i].origin) * half2(sin(frame * velocity.x), cos(frame * velocity.y));
     
     const float2 coordinate = float2(gidh - position); // vector from the circle to this grid point
-    const uint textureIndex = i % RenderCirclesTextureCount;
+    const uint textureIndex = circles[i].textureIndex % RenderCirclesTextureCount;
     const half4 sampled = inTextures[textureIndex].sample(textureSampler, coordinate);
     
     // do a colour calculation to simulate simple image processing

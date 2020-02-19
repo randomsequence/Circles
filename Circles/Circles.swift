@@ -57,6 +57,7 @@ public class Circles : NSObject {
                                           (0.25 + 0.75*(1.0-radius)) * abs(noise.value(atPosition: vector_float2(i_f*2, i_f*2))),
                                           (0.25 + 0.75*(1.0-radius)) * abs(noise.value(atPosition: vector_float2(i_f*3, i_f*3))),
                                           0.75 + abs(0.25 * noise.value(atPosition: vector_float2(i_f, 5))))
+      circleBuffer[i].textureIndex = uint(abs(Float(inputTextures.count) * noise.value(atPosition: vector_float2(i_f, 6))))
     }
 
     let length = MemoryLayout<Circle>.size * count
