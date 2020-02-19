@@ -17,8 +17,10 @@ class ViewController: NSViewController {
   }
   
   let displayLinkOutputCallback: CVDisplayLinkOutputCallback = {(displayLink: CVDisplayLink, inNow: UnsafePointer<CVTimeStamp>, inOutputTime: UnsafePointer<CVTimeStamp>, flagsIn: CVOptionFlags, flagsOut: UnsafeMutablePointer<CVOptionFlags>, displayLinkContext: UnsafeMutableRawPointer?) -> CVReturn in
-    let view = unsafeBitCast(displayLinkContext, to: ViewController.self)
-    view.render()    
+    if let context = displayLinkContext {
+      let view = Unmanaged<ViewController>.fromOpaque(context).takeUnretainedValue()
+      view.render()
+    }
     return kCVReturnSuccess
   }
   
@@ -35,7 +37,7 @@ class ViewController: NSViewController {
     }
     
     CVDisplayLinkCreateWithActiveCGDisplays(&link)
-    CVDisplayLinkSetOutputCallback(link!, displayLinkOutputCallback, UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()))
+    CVDisplayLinkSetOutputCallback(link!, displayLinkOutputCallback, Unmanaged.passUnretained(self).toOpaque())
     CVDisplayLinkStart(link!)
   }
   
