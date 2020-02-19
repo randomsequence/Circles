@@ -77,5 +77,19 @@ class ViewController: NSViewController {
       }
     }
   }
+  
+  @IBAction public func increase(_ sender: Any?) {
+    if let renderer = renderer {
+      let count = renderer.circles.circleCount
+      renderer.circles.circleCount = min(count+1  , 512)
+    }
+  }
+  
+  @IBAction public func decrease(_ sender: Any?) {
+    if let renderer = renderer {
+      let count = renderer.circles.circleCount
+      renderer.circles.circleCount = max(count-1, 0)
+    }
+  }
 }
 

@@ -14,8 +14,8 @@ public class Circles : NSObject {
   var inputTextures = [MTLTexture]()
   let threadgroupSize: MTLSize
 
-  var frameCount: Int = 0
-
+  var frameCount: UInt = 0
+  var circleCount: Int = 16
   
   public init(device: MTLDevice) {
     self.device = device
@@ -35,7 +35,8 @@ public class Circles : NSObject {
 
   public func generate(count: Int = 512) -> MTLBuffer {
 
-    let noiseSource = GKPerlinNoiseSource(frequency: 0.1, octaveCount: 2, persistence: 1, lacunarity: 0.3, seed: 05535555)
+    // use a noise source to generate sane values for an array of circles
+    let noiseSource = GKPerlinNoiseSource(frequency: 0.1, octaveCount: 2, persistence: 1, lacunarity: 0.3, seed: 05535533)
     let noise = GKNoise(noiseSource)
 
     let circleBuffer = UnsafeMutableBufferPointer<Circle>.allocate(capacity: count)
@@ -45,16 +46,17 @@ public class Circles : NSObject {
 
     for i in 0..<count {
       let i_f = Float(i)
+      // these noise sample positions are somewhat random - they produce useful results.
       circleBuffer[i].origin = simd_float2(noise.value(atPosition: vector_float2(i_f, 0)),
-                                             noise.value(atPosition: vector_float2(0, i_f)))
+                                           noise.value(atPosition: vector_float2(0, i_f)))
       let radius = abs(0.75 * noise.value(atPosition: vector_float2(-i_f, i_f)))
       circleBuffer[i].radius = radius
-      circleBuffer[i].velocity = simd_float2(2.0 * (1.0-radius) * noise.value(atPosition: vector_float2(i_f, i_f+1)),
-                                             2.0 * (1.0-radius) * noise.value(atPosition: vector_float2(-i_f, 2)))
-      circleBuffer[i].color = simd_float4((1.0-radius) * abs(noise.value(atPosition: vector_float2(i_f*1, i_f*1))),
-                                          (1.0-radius) * abs(noise.value(atPosition: vector_float2(i_f*2, i_f*2))),
-                                          (1.0-radius) * abs(noise.value(atPosition: vector_float2(i_f*3, i_f*3))),
-                                          0.5 + abs(0.5 * noise.value(atPosition: vector_float2(i_f, 5))))
+      circleBuffer[i].velocity = simd_float2(0.1 + (2.0 * (1.0-radius) * noise.value(atPosition: vector_float2(i_f, i_f+1))),
+                                             0.1 + (2.0 * (1.0-radius) * noise.value(atPosition: vector_float2(-i_f, 2))))
+      circleBuffer[i].color = simd_float4((0.25 + 0.75*(1.0-radius)) * abs(noise.value(atPosition: vector_float2(i_f*1, i_f*1))),
+                                          (0.25 + 0.75*(1.0-radius)) * abs(noise.value(atPosition: vector_float2(i_f*2, i_f*2))),
+                                          (0.25 + 0.75*(1.0-radius)) * abs(noise.value(atPosition: vector_float2(i_f*3, i_f*3))),
+                                          0.75 + abs(0.25 * noise.value(atPosition: vector_float2(i_f, 5))))
     }
 
     let length = MemoryLayout<Circle>.size * count
@@ -64,9 +66,10 @@ public class Circles : NSObject {
   public func render(commands: MTLCommandBuffer, texture: MTLTexture, circles: MTLBuffer) {
     let computeEncoder = commands.makeComputeCommandEncoder()!
             
+    var info = FrameInfo(FrameCount: uint(frameCount), CircleCount: uint(circleCount))
+    
     computeEncoder.setComputePipelineState(pipeline)
-    computeEncoder.setBytes(&frameCount, length: MemoryLayout<Int>.size, index: Int(BufferIndexFrameCount.rawValue));
-//    computeEncoder.setTexture(inputTexture, index: Int(TextureIndexInput.rawValue))
+    computeEncoder.setBytes(&info, length: MemoryLayout<FrameInfo>.size, index: Int(BufferIndexFrameInfo.rawValue));
     let startIndex = Int(TextureIndexInput.rawValue)
     computeEncoder.setBuffer(circles, offset: 0, index: Int(BufferIndexCircleData.rawValue))
     computeEncoder.setTextures(inputTextures, range: startIndex..<startIndex+inputTextures.count)

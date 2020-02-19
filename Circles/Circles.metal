@@ -15,22 +15,21 @@ static inline half4 alpha_blend(half4 src, half4 dest) {
 // Rec. 709 luma values for grayscale image conversion
 constant half3 kRec709Luma = half3(0.2126, 0.7152, 0.0722);
 
-constant int CircleCount = 16;
-
 /**
  
  Kernel which renders an array of Circle stucts to the current grid position in the texture.
  
  */
 kernel void render_circles(texture2d<half, access::write> outTexture [[texture(TextureIndexOutput)]],
-                           const array<texture2d<half, access::sample>, 4> inTextures  [[texture(TextureIndexInput)]],
-                           constant int *frameCountIndex [[buffer(BufferIndexFrameCount)]],
+                           const array<texture2d<half, access::sample>, RenderCirclesTextureCount> inTextures  [[texture(TextureIndexInput)]],
+                           constant FrameInfo *frameInfo [[buffer(BufferIndexFrameInfo)]],
                            constant Circle *circles [[buffer(BufferIndexCircleData)]],
                            uint2 gid [[thread_position_in_grid]],
                            uint2 grid [[threads_per_grid]]
                            )
 {
-  const half frame = half(frameCountIndex[0]) / 60.0h;
+  
+  const half frame = half(frameInfo[0].FrameCount) / 60.0h;
   
   // pixel position in normalised coordinates, with 0,0 at the centre
   half2 gridh = half2(grid);
@@ -48,13 +47,16 @@ kernel void render_circles(texture2d<half, access::write> outTexture [[texture(T
   // blend the background over our destination
   color = alpha_blend(grey, color);
 
-  for (int i=0; i<CircleCount; i++) {
+  const uint circleCount = frameInfo[0].CircleCount;
+  
+  for (uint i=0; i<circleCount; i++) {
     const half2 velocity = half2(circles[i].velocity);
     // use velocity and frame count to rotate the circle's origin about the centre of the grid
     const half2 position = half2(circles[i].origin) * half2(sin(frame * velocity.x), cos(frame * velocity.y));
     
     const float2 coordinate = float2(gidh - position); // vector from the circle to this grid point
-    const half4 sampled = inTextures[i % 4].sample(textureSampler, coordinate);
+    const uint textureIndex = i % RenderCirclesTextureCount;
+    const half4 sampled = inTextures[textureIndex].sample(textureSampler, coordinate);
     
     // do a colour calculation to simulate simple image processing
     const half mono = dot(sampled.rgb, kRec709Luma);
