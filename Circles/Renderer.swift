@@ -5,7 +5,6 @@ import Metal
 class Renderer : NSObject {
   
   let device: MTLDevice
-  let library: MTLLibrary
   let queue: MTLCommandQueue
   let circles: Circles!
   var circleBuffer: MTLBuffer?
@@ -16,10 +15,11 @@ class Renderer : NSObject {
   
   override init() {
     device = MTLCreateSystemDefaultDevice()!
-    library = device.makeDefaultLibrary()!
     queue = device.makeCommandQueue()!
     
-    circles = Circles(device: device)
+    let library = device.makeDefaultLibrary()!
+
+    circles = Circles(device: device, library: library)
     circleBuffer = circles.generate()
     
     let vertexData: [Float] = [

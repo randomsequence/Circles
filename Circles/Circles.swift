@@ -17,9 +17,8 @@ public class Circles : NSObject {
   var frameCount: UInt = 0
   var circleCount: Int = 16
   
-  public init(device: MTLDevice) {
+  public init(device: MTLDevice, library: MTLLibrary) {
     self.device = device
-    let library = device.makeDefaultLibrary()!
     let function = library.makeFunction(name: "render_circles")!
     pipeline = try! device.makeComputePipelineState(function: function)
     
