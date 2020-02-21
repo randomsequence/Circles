@@ -24,8 +24,12 @@ public class Circles : NSObject {
     pipeline = try! device.makeComputePipelineState(function: function)
     
     let loader = MTKTextureLoader(device: device)
+    let options: [MTKTextureLoader.Option : Any] = [
+      MTKTextureLoader.Option.textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
+      MTKTextureLoader.Option.textureStorageMode: NSNumber(value: MTLStorageMode.private.rawValue)
+                  ]
     for name in ["cells", "jar", "morris", "salt"] {
-      let inputTexture = try! loader.newTexture(name: name, scaleFactor: 1.0, bundle: nil, options: [:])
+      let inputTexture = try! loader.newTexture(name: name, scaleFactor: 1.0, bundle: nil, options: options)
       inputTextures.append(inputTexture)
     }
 
