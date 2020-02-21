@@ -14,7 +14,6 @@ public class Circles : NSObject {
   var inputTextures = [MTLTexture]()
   let threadgroupSize: MTLSize
 
-  var frameCount: UInt = 0
   var circleCount: Int = 16
   
   public init(device: MTLDevice, library: MTLLibrary) {
@@ -67,10 +66,10 @@ public class Circles : NSObject {
     return device.makeBuffer(bytes: circleBuffer.baseAddress!, length: length, options: MTLResourceOptions.storageModeManaged)!
   }
   
-  public func render(commands: MTLCommandBuffer, texture: MTLTexture, circles: MTLBuffer) {
+  public func render(commands: MTLCommandBuffer, texture: MTLTexture, circles: MTLBuffer, info: RenderInfo) {
     let computeEncoder = commands.makeComputeCommandEncoder()!
             
-    var info = FrameInfo(FrameCount: uint(frameCount), CircleCount: uint(circleCount))
+    var info = FrameInfo(FrameCount: uint(info.frameIndex), CircleCount: uint(circleCount))
     
     computeEncoder.setComputePipelineState(pipeline)
     computeEncoder.setBytes(&info, length: MemoryLayout<FrameInfo>.size, index: Int(BufferIndexFrameInfo.rawValue));
@@ -96,7 +95,5 @@ public class Circles : NSObject {
 */
     
     computeEncoder.endEncoding()
-    
-    frameCount += 1;
   }
 }

@@ -9,6 +9,7 @@ class ViewController: NSViewController {
   var renderer: Renderer?
   
   var metalLayer: CAMetalLayer?
+  var lastFrameInfo: RenderInfo = RenderInfo(time: CFAbsoluteTimeGetCurrent(), timeDelta: 0, frameIndex: 0)
   
   deinit {
     if let link = link {
@@ -27,10 +28,12 @@ class ViewController: NSViewController {
   }
   
   func render() {
+    let renderInfo = lastFrameInfo.relativeTo(time: CFAbsoluteTimeGetCurrent())
     if let metalLayer = metalLayer, let drawable = metalLayer.nextDrawable() {
-      renderer?.render(texture: drawable.texture)
+      renderer?.render(texture: drawable.texture, info: renderInfo)
       drawable.present()
     }
+    lastFrameInfo = renderInfo
   }
   
   override func viewWillAppear() {

@@ -2,6 +2,16 @@
 
 import Metal
 
+public struct RenderInfo {
+  let time: CFTimeInterval
+  let timeDelta: CFTimeInterval
+  let frameIndex: UInt
+
+  public func relativeTo(time: CFTimeInterval) -> RenderInfo {
+    return RenderInfo(time: time, timeDelta: time-self.time, frameIndex: self.frameIndex + 1)
+  }
+}
+
 class Renderer : NSObject {
   
   let device: MTLDevice
@@ -66,7 +76,7 @@ class Renderer : NSObject {
     pthread_rwlock_destroy(&lock)
   }
 
-  public func render(texture: MTLTexture) {
+  public func render(texture: MTLTexture, info: RenderInfo) {
 
     guard self.rendering == false else {
       return
@@ -87,7 +97,7 @@ class Renderer : NSObject {
       computeTexture = device.makeTexture(descriptor: decriptor)
     }
     
-    circles.render(commands: commands, texture: computeTexture!, circles: circleBuffer!)
+    circles.render(commands: commands, texture: computeTexture!, circles: circleBuffer!, info: info)
     
     let renderPassDescriptor = MTLRenderPassDescriptor()
     renderPassDescriptor.colorAttachments[0].texture = texture
