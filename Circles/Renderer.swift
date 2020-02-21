@@ -24,7 +24,7 @@ class Renderer : NSObject {
   var computeTexture: MTLTexture?
 
   var lock : pthread_rwlock_t
-  var rendering_raw = false
+  private var rendering_raw = false
   var rendering: Bool {
     get {
       pthread_rwlock_rdlock(&lock)
@@ -77,11 +77,6 @@ class Renderer : NSObject {
   }
 
   public func render(texture: MTLTexture, info: RenderInfo) {
-
-    guard self.rendering == false else {
-      return
-    }
-
     let commands = queue.makeCommandBuffer()!
     
     let now = CFAbsoluteTimeGetCurrent()

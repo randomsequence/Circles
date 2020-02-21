@@ -6,7 +6,7 @@ import Metal
 class ViewController: NSViewController {
   
   var link: CVDisplayLink?
-  var renderer: Renderer?
+  var renderer: Renderer!
   
   var metalLayer: CAMetalLayer?
   var lastFrameInfo: RenderInfo = RenderInfo(time: CFAbsoluteTimeGetCurrent(), timeDelta: 0, frameIndex: 0)
@@ -29,10 +29,14 @@ class ViewController: NSViewController {
   
   func render() {
     let renderInfo = lastFrameInfo.relativeTo(time: CFAbsoluteTimeGetCurrent())
-    if let metalLayer = metalLayer, let drawable = metalLayer.nextDrawable() {
-      renderer?.render(texture: drawable.texture, info: renderInfo)
-      drawable.present()
+
+    if renderer.rendering == false {
+      if let metalLayer = metalLayer, let drawable = metalLayer.nextDrawable() {
+        renderer?.render(texture: drawable.texture, info: renderInfo)
+        drawable.present()
+      }
     }
+
     lastFrameInfo = renderInfo
   }
   
@@ -86,17 +90,13 @@ class ViewController: NSViewController {
   }
   
   @IBAction public func increase(_ sender: Any?) {
-    if let renderer = renderer {
-      let count = renderer.circles.circleCount
-      renderer.circles.circleCount = min(count+1, 512)
-    }
+    let count = renderer.circles.circleCount
+    renderer.circles.circleCount = min(count+1, 512)
   }
   
   @IBAction public func decrease(_ sender: Any?) {
-    if let renderer = renderer {
-      let count = renderer.circles.circleCount
-      renderer.circles.circleCount = max(count-1, 0)
+    let count = renderer.circles.circleCount
+    renderer.circles.circleCount = max(count-1, 0)
     }
-  }
 }
 
