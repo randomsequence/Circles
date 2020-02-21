@@ -19,7 +19,9 @@ class ViewController: NSViewController {
   let displayLinkOutputCallback: CVDisplayLinkOutputCallback = {(displayLink: CVDisplayLink, inNow: UnsafePointer<CVTimeStamp>, inOutputTime: UnsafePointer<CVTimeStamp>, flagsIn: CVOptionFlags, flagsOut: UnsafeMutablePointer<CVOptionFlags>, displayLinkContext: UnsafeMutableRawPointer?) -> CVReturn in
     if let context = displayLinkContext {
       let view = Unmanaged<ViewController>.fromOpaque(context).takeUnretainedValue()
-      view.render()
+      autoreleasepool {
+        view.render()
+      }
     }
     return kCVReturnSuccess
   }
