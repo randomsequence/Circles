@@ -12,7 +12,23 @@ class Renderer : NSObject {
   let vertexBuffer: MTLBuffer
   var vertexPipeline: MTLRenderPipelineState!
   var computeTexture: MTLTexture?
-  
+
+  var lock : pthread_rwlock_t
+  var rendering_raw = false
+  var rendering: Bool {
+    get {
+      pthread_rwlock_rdlock(&lock)
+      let rendering = rendering_raw
+      pthread_rwlock_unlock(&lock)
+      return rendering
+    }
+    set {
+      pthread_rwlock_wrlock(&lock)
+      rendering_raw = newValue
+      pthread_rwlock_unlock(&lock)
+    }
+  }
+
   override init() {
     device = MTLCreateSystemDefaultDevice()!
     queue = device.makeCommandQueue()!
@@ -40,10 +56,22 @@ class Renderer : NSObject {
     pipelineStateDescriptor.fragmentFunction = fragmentProgram
     pipelineStateDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
     
-    vertexPipeline = try! device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)    
+    vertexPipeline = try! device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
+
+    lock = pthread_rwlock_t()
+    pthread_rwlock_init(&lock, nil)
   }
-  
+
+  deinit {
+    pthread_rwlock_destroy(&lock)
+  }
+
   public func render(texture: MTLTexture) {
+
+    guard self.rendering == false else {
+      return
+    }
+
     let commands = queue.makeCommandBuffer()!
     
     let now = CFAbsoluteTimeGetCurrent()
@@ -76,7 +104,13 @@ class Renderer : NSObject {
     renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
     renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: 1)
     renderEncoder.endEncoding()
-    
+
+    self.rendering = true
+
+    commands.addCompletedHandler { (_) in
+      self.rendering = false
+    }
+
     commands.commit()
   }
   
