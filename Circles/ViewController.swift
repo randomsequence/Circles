@@ -31,9 +31,11 @@ class ViewController: NSViewController {
     let renderInfo = lastFrameInfo.relativeTo(time: CFAbsoluteTimeGetCurrent())
 
     if renderer.rendering == false {
-      if let metalLayer = metalLayer, let drawable = metalLayer.nextDrawable() {
-        renderer?.render(texture: drawable.texture, info: renderInfo)
-        drawable.present()
+      DispatchQueue.main.async {
+        if let metalLayer = self.metalLayer, let drawable = metalLayer.nextDrawable() {
+          self.renderer?.render(texture: drawable.texture, info: renderInfo)
+          drawable.present()
+        }
       }
     }
 

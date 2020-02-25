@@ -22,7 +22,8 @@ class Renderer : NSObject {
   let vertexBuffer: MTLBuffer
   var vertexPipeline: MTLRenderPipelineState!
   var computeTexture: MTLTexture?
-
+  var capture = true
+  
   var lock : pthread_rwlock_t
   private var rendering_raw = false
   var rendering: Bool {
@@ -77,6 +78,19 @@ class Renderer : NSObject {
   }
 
   public func render(texture: MTLTexture, info: RenderInfo) {
+    
+    let captureManager: MTLCaptureManager? = (capture) ? MTLCaptureManager.shared() : nil
+    if let captureManager = captureManager {
+      if #available(OSX 10.15, *) {
+        let descriptor = MTLCaptureDescriptor()
+        descriptor.captureObject = device
+        descriptor.destination = .gpuTraceDocument
+        descriptor.outputURL = URL(fileURLWithPath: "compute.gputrace")
+        try! captureManager.startCapture(with: descriptor)
+      }
+      capture = false
+    }
+    
     let commands = queue.makeCommandBuffer()!
     
     let now = CFAbsoluteTimeGetCurrent()
@@ -117,6 +131,8 @@ class Renderer : NSObject {
     }
 
     commands.commit()
+    
+    captureManager?.stopCapture()
   }
   
 }
