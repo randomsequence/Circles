@@ -12,6 +12,23 @@ public struct RenderInfo {
   }
 }
 
+func getDevice() -> MTLDevice {
+  var device: MTLDevice? = nil
+
+  // find a low power device if we have one
+  for aDevice in MTLCopyAllDevices() {
+    if (aDevice.isLowPower) {
+      device = aDevice
+    }
+  }
+  
+  if (device == nil) {
+    device = MTLCreateSystemDefaultDevice()
+  }
+  
+  return device!
+}
+
 class Renderer : NSObject {
   
   let device: MTLDevice
@@ -41,7 +58,7 @@ class Renderer : NSObject {
   }
 
   override init() {
-    device = MTLCreateSystemDefaultDevice()!
+    device = getDevice()
     queue = device.makeCommandQueue()!
     
     let library = device.makeDefaultLibrary()!

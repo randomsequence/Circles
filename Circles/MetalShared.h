@@ -30,6 +30,6 @@ struct FrameInfo {
   uint CircleCount;
 };
 
-#define RenderCirclesTextureCount 16
+#define RenderCirclesTextureCount 64
 
 #endif /* MetalShared_h */
