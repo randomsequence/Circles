@@ -67,6 +67,11 @@ public class Circles : NSObject {
   }
   
   public func render(commands: MTLCommandBuffer, texture: MTLTexture, circles: MTLBuffer, info: RenderInfo) {
+
+//    let captureManager = MTLCaptureManager.shared()
+//    let scope = captureManager.makeCaptureScope(commandQueue: commands.commandQueue)
+//    captureManager.startCapture(scope: scope)
+
     let computeEncoder = commands.makeComputeCommandEncoder()!
             
     var info = FrameInfo(FrameCount: uint(info.frameIndex), CircleCount: uint(circleCount))
@@ -95,5 +100,7 @@ public class Circles : NSObject {
 */
     
     computeEncoder.endEncoding()
+
+//    captureManager.stopCapture()
   }
 }
