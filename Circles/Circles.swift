@@ -14,7 +14,11 @@ public class Circles : NSObject {
 
   var circleBuffer: MTLBuffer? = nil
 
+  var heap: MTLHeap? = nil
+
   var inputTextures = [MTLTexture]()
+  var heapTextures = [MTLTexture]()
+
   let threadgroupSize: MTLSize
 
   var circleCount: Int = 16
@@ -24,7 +28,7 @@ public class Circles : NSObject {
 
     function = library.makeFunction(name: "render_circles")!
     pipeline = try! device.makeComputePipelineState(function: function)
-    
+
     let loader = MTKTextureLoader(device: device)
     let options: [MTKTextureLoader.Option : Any] = [
       MTKTextureLoader.Option.textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
@@ -37,11 +41,97 @@ public class Circles : NSObject {
 
     let threadExecutionWidth = pipeline.threadExecutionWidth
     threadgroupSize = MTLSizeMake(threadExecutionWidth, pipeline.maxTotalThreadsPerThreadgroup / threadExecutionWidth, 1);
+
+    super.init()
+
+    self.heap = makeHeap()
+    heapTextures = copyTexturesToHeap(heap!, textures: inputTextures)
+  }
+
+  func copyTexturesToHeap(_ heap: MTLHeap, textures: [MTLTexture]) -> [MTLTexture] {
+    let queue = device.makeCommandQueue()!
+    let buffer = queue.makeCommandBuffer()!
+    let blit = buffer.makeBlitCommandEncoder()!
+
+    var heapTextures = [MTLTexture]()
+
+    for texture in textures {
+      let textureDescriptor = makeDescriptorFromTexture(texture)
+      let heapTexture = heap.makeTexture(descriptor: textureDescriptor)!
+      let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
+      blit.copy(from: texture, sourceSlice: 0, sourceLevel: 0,
+                sourceOrigin: region.origin, sourceSize: region.size,
+                to: heapTexture, destinationSlice: 0, destinationLevel: 0,
+                destinationOrigin: region.origin)
+      blit.generateMipmaps(for: heapTexture)
+      heapTextures.append(heapTexture)
+    }
+
+    blit.endEncoding()
+    buffer.commit()
+
+    return heapTextures
+  }
+
+  func copyBufferToHeap(_ buffer: MTLBuffer, heap: MTLHeap) -> MTLBuffer {
+    let heapBuffer = heap.makeBuffer(length: buffer.length, options: .storageModePrivate)!
+
+    let queue = device.makeCommandQueue()!
+    let commands = queue.makeCommandBuffer()!
+    let blit = commands.makeBlitCommandEncoder()!
+
+    blit.copy(from: buffer, sourceOffset: 0, to: heapBuffer, destinationOffset: 0, size: buffer.length)
+
+    blit.endEncoding()
+    commands.commit()
+
+    return heapBuffer
+  }
+
+  func makeDescriptorFromTexture(_ texture: MTLTexture) -> MTLTextureDescriptor {
+    let descriptor = MTLTextureDescriptor()
+
+    descriptor.textureType      = texture.textureType;
+    descriptor.pixelFormat      = texture.pixelFormat;
+    descriptor.width            = texture.width;
+    descriptor.height           = texture.height;
+    descriptor.depth            = texture.depth;
+    descriptor.arrayLength      = texture.arrayLength;
+    descriptor.sampleCount      = texture.sampleCount;
+    descriptor.storageMode      = .private;
+
+    let widthLevels = ceil(log2(Double(texture.width)));
+    let heightLevels = ceil(log2(Double(texture.height)));
+
+    descriptor.mipmapLevelCount = Int(max(min(widthLevels, heightLevels), 1.0));
+
+    return descriptor;
+  }
+
+  func makeHeap() -> MTLHeap {
+    let heapDescriptor = MTLHeapDescriptor()
+    heapDescriptor.storageMode = .private
+    heapDescriptor.size = 0
+
+    for i in 0..<inputTextures.count {
+      let textureDescriptor = makeDescriptorFromTexture(inputTextures[i])
+      var sizeAndAlign = device.heapTextureSizeAndAlign(descriptor: textureDescriptor)
+      sizeAndAlign.size += (sizeAndAlign.size & (sizeAndAlign.align - 1)) + sizeAndAlign.align
+      heapDescriptor.size += sizeAndAlign.size
+    }
+
+
+    var circleSizeAndAlign = device.heapBufferSizeAndAlign(length: MemoryLayout<Circle>.size * 256, options: .storageModePrivate)
+    circleSizeAndAlign.size +=  (circleSizeAndAlign.size & (circleSizeAndAlign.align - 1)) + circleSizeAndAlign.align;
+
+    heapDescriptor.size += circleSizeAndAlign.size;
+
+    return device.makeHeap(descriptor: heapDescriptor)!
   }
 
   // Generates an argument buffer containing the circle data and textures
   // Note that the argument buffer does not retain any buffers it refers to
-  public func generate(count: Int = 512) -> MTLBuffer {
+  public func generate(count: Int = 256) -> MTLBuffer {
 
     // use a noise source to generate sane values for an array of circles
     let noiseSource = GKPerlinNoiseSource(frequency: 0.1, octaveCount: 2, persistence: 1, lacunarity: 0.3, seed: 05535533)
@@ -49,7 +139,7 @@ public class Circles : NSObject {
 
     var circles = [Circle]()
 
-    for i in 0..<count {
+    for i in 0..<min(count, 256) {
       let i_f = Float(i)
       let radius = abs(0.75 * noise.value(atPosition: vector_float2(-i_f, i_f)))
       let circle = Circle(color: simd_float4((0.25 + 0.75*(1.0-radius)) * abs(noise.value(atPosition: vector_float2(i_f*1, i_f*1))),
@@ -68,6 +158,7 @@ public class Circles : NSObject {
     circles.withUnsafeBytes { ptr in
       circleBuffer = device.makeBuffer(bytes: ptr.baseAddress!, length: ptr.count, options: MTLResourceOptions.storageModeManaged)!
     }
+    circleBuffer = copyBufferToHeap(circleBuffer!, heap: heap!)
 
     let argumentEncoder = function.makeArgumentEncoder(bufferIndex: Int(BufferIndexCircleAB.rawValue))
     let encodedLength = argumentEncoder.encodedLength
@@ -75,7 +166,7 @@ public class Circles : NSObject {
     argumentEncoder.setArgumentBuffer(argumentBuffer, offset: 0)
 
     let startIndex = Int(ABBufferIDTextures.rawValue)
-    argumentEncoder.setTextures(inputTextures, range: startIndex..<startIndex+inputTextures.count)
+    argumentEncoder.setTextures(heapTextures, range: startIndex..<startIndex+inputTextures.count)
     argumentEncoder.setBuffer(circleBuffer, offset: 0, index: Int(ABBufferIDCircles.rawValue))
 
     argumentBuffer?.didModifyRange(0..<encodedLength)
@@ -92,6 +183,7 @@ public class Circles : NSObject {
     computeEncoder.setBytes(&info, length: MemoryLayout<FrameInfo>.size, index: Int(BufferIndexFrameInfo.rawValue));
     computeEncoder.setBuffer(circlesAB, offset: 0, index: Int(BufferIndexCircleAB.rawValue))
     computeEncoder.setTexture(texture, index: Int(TextureIndexOutput.rawValue))
+    computeEncoder.useHeap(heap!)
     
     let width = texture.width
     let height = texture.height
