@@ -123,7 +123,7 @@ class Renderer : NSObject {
       computeTexture = device.makeTexture(descriptor: decriptor)
     }
     
-    circles.render(commands: commands, texture: computeTexture!, circles: circleBuffer!, info: info)
+    circles.render(commands: commands, texture: computeTexture!, circlesAB: circleBuffer!, info: info)
     
     let renderPassDescriptor = MTLRenderPassDescriptor()
     renderPassDescriptor.colorAttachments[0].texture = texture

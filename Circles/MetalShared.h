@@ -5,6 +5,8 @@
 
 #include <simd/simd.h>
 
+#define RenderCirclesTextureCount 64
+
 typedef enum TextureIndex
 {
     TextureIndexOutput = 0,
@@ -14,7 +16,7 @@ typedef enum TextureIndex
 typedef enum BufferIndex
 {
     BufferIndexFrameInfo = 0,
-    BufferIndexCircleData = 1,
+    BufferIndexCircleAB = 1,
 } BufferIndex;
 
 struct Circle {
@@ -30,6 +32,9 @@ struct FrameInfo {
   uint CircleCount;
 };
 
-#define RenderCirclesTextureCount 64
+typedef enum ABBufferID {
+  ABBufferIDCircles = 0,
+  ABBufferIDTextures
+} ABBufferID;
 
 #endif /* MetalShared_h */

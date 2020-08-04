@@ -20,10 +20,15 @@ constant half3 kRec709Luma = half3(0.2126, 0.7152, 0.0722);
  Kernel which renders an array of Circle stucts to the current grid position in the texture.
  
  */
+
+struct RenderCirclesAB {
+  constant Circle *circles [[ id(ABBufferIDCircles) ]];
+  const array<texture2d<half, access::sample>, RenderCirclesTextureCount> inTextures [[ id(ABBufferIDTextures) ]];
+};
+
 kernel void render_circles(texture2d<half, access::write> outTexture [[texture(TextureIndexOutput)]],
-                           const array<texture2d<half, access::sample>, RenderCirclesTextureCount> inTextures  [[texture(TextureIndexInput)]],
                            constant FrameInfo *frameInfo [[buffer(BufferIndexFrameInfo)]],
-                           constant Circle *circles [[buffer(BufferIndexCircleData)]],
+                           constant RenderCirclesAB & args [[buffer(BufferIndexCircleAB)]],
                            uint2 gid [[thread_position_in_grid]],
                            uint2 grid [[threads_per_grid]]
                            )
@@ -41,7 +46,7 @@ kernel void render_circles(texture2d<half, access::write> outTexture [[texture(T
   half4 color = half4(0); // begin with a transparent destination
 
   // Sample a the first to use as a background
-  half4 inColor  = inTextures[0].sample(textureSampler, float2(gidh) * 4.0);
+  half4 inColor  = args.inTextures[0].sample(textureSampler, float2(gidh) * 4.0);
   const half grey = dot(inColor.rgb, kRec709Luma);
 
   // blend the background over our destination
@@ -50,22 +55,22 @@ kernel void render_circles(texture2d<half, access::write> outTexture [[texture(T
   const uint circleCount = frameInfo[0].CircleCount;
   
   for (uint i=0; i<circleCount; i++) {
-    const half2 velocity = half2(circles[i].velocity);
+    const half2 velocity = half2(args.circles[i].velocity);
     // use velocity and frame count to rotate the circle's origin about the centre of the grid
-    const half2 position = half2(circles[i].origin) * half2(sin(frame * velocity.x), cos(frame * velocity.y));
+    const half2 position = half2(args.circles[i].origin) * half2(sin(frame * velocity.x), cos(frame * velocity.y));
     
     const float2 coordinate = float2(gidh - position); // vector from the circle to this grid point
-    const uint textureIndex = circles[i].textureIndex % RenderCirclesTextureCount;
-    const half4 sampled = inTextures[textureIndex].sample(textureSampler, coordinate);
+    const uint textureIndex = args.circles[i].textureIndex % RenderCirclesTextureCount;
+    const half4 sampled = args.inTextures[textureIndex].sample(textureSampler, coordinate);
     
     // do a colour calculation to simulate simple image processing
     const half mono = dot(sampled.rgb, kRec709Luma);
-    const half4 circleColor = half4(circles[i].color);
+    const half4 circleColor = half4(args.circles[i].color);
     const half4 tinted = half4(circleColor.rgb * 0.5h + (circleColor.rgb * mono * 0.5h), circleColor.a);
  
     // find opacity - 0 if we're outside the circle's radius
     const half dist2 = distance_squared(gidh, position);
-    const half radius = half(circles[i].radius);
+    const half radius = half(args.circles[i].radius);
     const half opacity = step(0.0h, half((radius*radius) - dist2));
     
     // blend our processed colour with the destination
